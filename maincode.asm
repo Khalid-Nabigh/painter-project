@@ -10,21 +10,7 @@ mov bx,ScanCodeTable
 	
 	;WRITE YOUR CODE HERE
 xor ecx,ecx
-cheak:
-in al,0x64
-and al,1
-jz cheak
-
-in al,0x60
-cmp al,0x80
-ja cheak
-
-xlat
-mov [edi],al
-inc edi
-inc edi
-
-jmp cheak	
+	
 	
 ScanCodeTable: db "//1234567890-=//QWERTYUIOP[]//ASDFGHJKL;//'/ZXCVBNM,.//// /"
 
