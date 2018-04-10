@@ -23,22 +23,44 @@ and al,0x20
 jz waitformouse
 
 maincode:
-call MouseRead
+call MouseRead ;status byte
 and al,3
 mov byte[stat],al
 
 next:
-call MouseRead
+call MouseRead ;xbyte
 xor dx,dx
 movsx dx,al
 add [xmouse], dx
 
-call MouseRead
+;x_borders 
+cmp word[xmouse],0  
+jg case0
+mov word[xmouse],0
+	  
+case0:
+cmp word[xmouse],319
+jl case1
+mov word[xmouse],319
+case1:
+
+call MouseRead ;ybyte
 xor dx,dx
 movsx dx,al
 sub [ymouse], dx
 
-call MouseRead
+;y_borders
+cmp word [ymouse],199
+jl case2
+mov word[ymouse],199
+       
+case2:
+cmp word [ymouse],0
+jg case3
+mov word [ymouse],0
+case3:
+
+call MouseRead ;zaxis byte (not used)
 
 cmp byte[stat],1
 je yellow
