@@ -23,11 +23,19 @@ and al,0x20
 jz waitformouse
 
 maincode:
+cmp byte[stat],1
+je next
+mov al,0000b
+mov cx,[xmouse]
+mov dx,[ymouse]
+mov ah,0ch
+int 10h
+
+next:
 call MouseRead ;status byte
 and al,3
 mov byte[stat],al
 
-next:
 call MouseRead ;xbyte
 xor dx,dx
 movsx dx,al
@@ -64,10 +72,7 @@ call MouseRead ;zaxis byte (not used)
 
 cmp byte[stat],1
 je yellow
-jb nothing
-cmp byte[stat],2
-ja nothing
-mov al,0
+mov al,0100b
 jmp print
 yellow:
 mov al,1110b
@@ -78,7 +83,6 @@ mov dx,[ymouse]
 mov ah,0ch
 int 10h
 
-nothing:
 jmp waitformouse
 
 
