@@ -2,118 +2,96 @@ bits 16
 org 0x7C00
 
 	cli
+mov bx,ScanCodeTable
 	xor ax,ax
 	mov ds,ax
 	mov es,ax
 	mov edi, 0xB8000;
 	
 	;WRITE YOUR CODE HERE
-mov ax,13h  
-int 10h 
+mov al, 13h
+mov ah, 0
+int 10h ; set graphics video mode.
 
-; enable (0xf4)
-mov al,0xf4
-call MouseWrite
+mov bx,20
+nextx:
+cmp bx,300
+jg yaxis
+mov al, 1111b
+mov cx, bx
+mov dx, 100
+mov ah, 0ch
+int 10h ; set pixel.
 
+inc bx
+jmp nextx
 
-waitformouse:
+yaxis:
+mov bx,10
+nexty:
+cmp bx,190
+jg next
+mov al, 1111b
+mov cx, 160
+mov dx, bx
+mov ah, 0ch
+int 10h ; set pixel.
 
-in al,0x64
-and al,0x20
-jz waitformouse
-
-maincode:
-cmp byte[stat],1
-je next
-mov al,0000b
-mov cx,[xmouse]
-mov dx,[ymouse]
-mov ah,0ch
-int 10h
+inc bx
+jmp nexty
 
 next:
-in al,0x60 ;status byte
-and al,3
-mov byte[stat],al
+mov bx,20
+nextfun:
+cmp bx,300
+jg next2
+xor eax,eax
+xor ecx,ecx
+mov ax,bx
+sub ax,160
 
-in al,0x60 ;xbyte
-xor dx,dx
-movsx dx,al
-add [xmouse], dx
+call fun
 
-;x_borders 
-cmp word[xmouse],0  
-jg case0
-mov word[xmouse],0
-	  
-case0:
-cmp word[xmouse],319
-jl case1
-mov word[xmouse],319
-case1:
+neg ax
+add ax,100
 
-in al,0x60 ;ybyte
-xor dx,dx
-movsx dx,al
-sub [ymouse], dx
-
-;y_borders
-cmp word [ymouse],199
+cmp ax,199
 jl case2
-mov word[ymouse],199
+jmp noway
        
 case2:
-cmp word [ymouse],0
+cmp ax,0
 jg case3
-mov word [ymouse],0
+jmp noway
 case3:
 
-in al,0x60 ;zaxis byte (not used)
+mov dx,ax
+mov al, 0001b
+mov cx, bx
+;mov dx, ax
+mov ah, 0ch
+int 10h ; set pixel.
 
-cmp byte[stat],1
-je yellow
-mov al,0100b
-jmp print
-yellow:
-mov al,1110b
+noway:
+inc bx
+jmp nextfun
 
-print:
-mov cx,[xmouse]
-mov dx,[ymouse]
-mov ah,0ch
-int 10h
+next2:
 
-jmp waitformouse
+xor ecx,ecx
+jmp done	
+xc: dw 160
+yc: dw 100
+a: dw 10
+b: dw 3
 
-
-jmp done
-WriteMouseWait:
-check1:  
-in         al, 0x64
-and        al, 0x02
-jz         fin1 
-jmp check1
-fin1:
+fun:
+mul word[b]
+add ax,[a]
 ret
 	
-MouseWrite:
-mov ah, al
-call WriteMouseWait
-mov al, 0xd4
-out 0x64, al
-call WriteMouseWait
-mov al, ah
-out 0x60, al
-in al,0x60
-ret
-
-xmouse: dw 0      
-ymouse: dw 0
-stat: db 0
-
+ScanCodeTable: db "//1234567890-=//QWERTYUIOP[]//ASDFGHJKL;//'/ZXCVBNM,.//// /"
 done:
-
-
 times (510 - ($ - $$)) db 0
 db 0x55, 0xAA
 times (0x400000 - 512) db 0
