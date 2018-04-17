@@ -2,20 +2,39 @@ bits 16
 org 0x7C00
 
 	cli
-	xor ax,ax
-	mov ds,ax
-	mov es,ax
-	mov edi, 0xB8000;
+	
+	
+
+	 mov ah , 0x02
+ mov al ,6
+ mov dl , 0x80
+ mov ch ,0
+ mov dh , 0
+ mov cl , 2
+ mov bx , StartingTheCode
+ int 0x13
+ jmp StartingTheCode
+ 
+  
+  
+
+	
+	
+times (510 - ($ - $$)) db 0
+db 0x55, 0xAA
+
+StartingTheCode:
 	
 	;WRITE YOUR CODE HERE
 
-mov ax,13h  
-int 10h 
+
+mov al,13h
+mov ah,0
+int 10h
 
 ; enable (0xf4)
 mov al,0xf4
 call MouseWrite
-
 
 waitformouse:
 
@@ -24,8 +43,6 @@ and al,0x20
 jz waitformouse
 
 maincode:
-cmp byte[stat],1
-je next
 cmp byte[stat],2
 je erase
 mov al,[color]
@@ -33,7 +50,7 @@ mov cx,[xmouse]
 mov dx,[ymouse]
 mov ah,0ch
 int 10h
-jmp next
+jmp nextn
 
 erase:
 mov al,0
@@ -42,7 +59,7 @@ mov dx,[ymouse]
 mov ah,0ch
 int 10h
 
-next:
+nextn:
 in al,0x60 ;status byte
 and al,3
 mov byte[stat],al
@@ -80,7 +97,6 @@ mov word [ymouse],0
 case3:
 
 in al,0x60 ;zaxis byte (not used)
-
 mov cx,[xmouse]
 mov dx,[ymouse]
 mov ah,0dh
@@ -90,11 +106,11 @@ mov [color],al
 cmp byte[stat],1
 je yellow
 mov al,0100b
-jmp print
+jmp nextm
 yellow:
-mov al,1110b
-
-print:
+mov al,0100b
+call new
+nextm:
 mov cx,[xmouse]
 mov dx,[ymouse]
 mov ah,0ch
@@ -102,8 +118,243 @@ int 10h
 
 jmp waitformouse
 
+new:
+cmp byte[stat2],0
+je zero
+xor ecx,ecx
+xor edx,edx
+mov cx,[xmouse]
+mov dx,[ymouse]
+;sub ecx,160
+mov [xr],ecx
+;sub edx,100
+;neg edx
+mov [yr],edx
+inc byte[stat2]
+jmp nexty
+zero:
+xor edx,edx
+xor ecx,ecx
+mov cx,[xmouse]
+mov dx,[ymouse]
+;sub ecx,160
+mov [xc],ecx
+;sub edx,100
+;neg edx
+mov [yc],edx
+inc byte[stat2]
 
+nexty:
+cmp byte[stat2],2
+jne print
+pusha
+call paint
+popa
+mov byte[stat2],0
+
+print:
+ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;(xc,yc) = the value of the center;
+;(xr,yr) =  point at the circumference;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;the value of the radius
+paint:
+fild word[xc]
+fisub word[xr]
+fmul st0
+fild word[yc]
+fisub word[yr]
+fmul st0
+fadd
+fsqrt
+fistp word[r]
+;;;
+mov ax,[xc]
+add ax,[r]
+cmp ax,319
+jg done
+mov ax,[xc]
+sub ax,[r]
+cmp ax,0
+jl done
+
+mov ax,[yc]
+add ax,[r]
+cmp ax,199
+jg done
+mov ax,[yc]
+sub ax,[r]
+cmp ax,0
+jl done
+
+
+;;;;
+;;your code
+;;;x=r y=0
+mov cx,[r]
+mov [x],cx
+xor bx,bx
+mov [y],bx
+jmp l4
+;;;;
+begining:
+
+mov dx,[p]
+neg dx
+add dx,1
+mov [p],dx
+
+;;;while (x>y)
+circle:
+mov cx,[x]
+cmp cx ,[y]
+jle done
+;;;y++
+inc word[y]
+;;;;if (p<=0)
+;P = P + 2*y + 1;
+mov bx,[p]
+cmp bx,0
+jg l2
+mov dx,[y]
+add dx,dx
+inc dx
+add dx,[p]
+mov [p],dx
+jmp if3
+;;;;
+;;else
+;P = P + 2*y - 2*x + 1;
+;x--;
+l2:
+dec word[x]
+mov dx,[x]
+add dx,dx
+neg dx
+mov bx,[y]
+add bx,bx
+add bx ,dx
+inc bx
+add bx,[p]
+mov [p],bx
+;;;;;;;;
+;;if3
+if3:
+mov dx,[x]
+cmp dx,[y]
+jge l4
 jmp done
+;;;;l4
+l4:
+;;;(x+xc,y+yc)
+mov ah,0Ch 	
+mov al,1
+mov cx,[x]
+mov dx,[y]
+add cx,[xc]
+add dx,[yc]
+int 10h
+;;;(-x + x_centre, y + y_centre)
+mov ah,0Ch 	
+mov al,1
+mov cx,[x]
+neg cx
+mov dx,[y]
+add cx,[xc]
+add dx,[yc]
+int 10h
+;;;(x + x_centre, -y + y_centre)
+mov ah,0Ch 	
+mov al,1
+mov cx,[x]
+mov dx,[y]
+neg dx
+add cx,[xc]
+add dx,[yc]
+int 10h
+;;;( -x + x_centre, -y + y_centre)
+mov ah,0Ch 	
+mov al,1
+mov cx,[x]
+neg cx
+mov dx,[y]
+neg dx
+add cx,[xc]
+add dx,[yc]
+int 10h
+
+mov ax,[y]
+cmp ax,0
+je begining
+;;;;;;
+;;if(x!=y)
+mov bx,[x]
+cmp bx,[y]
+je l5
+;;;;(y+xc,x+yc)
+mov ah,0Ch 	
+mov al,1
+mov cx,[y]
+mov dx,[x]
+add cx,[xc]
+add dx,[yc]
+int 10h
+;;;(-y + x_centre, x + y_centre)
+mov ah,0Ch 	
+mov al,1
+mov cx,[y]
+neg cx
+mov dx,[x]
+add cx,[xc]
+add dx,[yc]
+int 10h
+;;;(y + x_centre, -x + y_centre)
+mov ah,0Ch 	
+mov al,1
+mov cx,[y]
+mov dx,[x]
+neg dx
+add cx,[xc]
+add dx,[yc]
+int 10h
+;;;(-y + x_centre, -x + y_centre)
+mov ah,0Ch 	
+mov al,1
+mov cx,[y]
+neg cx
+mov dx,[x]
+neg dx
+add cx,[xc]
+add dx,[yc]
+int 10h
+
+l5:
+jmp circle
+;;end of the while loop
+done:
+ret
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+jmp rii
+;;;;memory
+x: dw 0
+y: dw 0
+r: dw 0
+p: dw 0
+xc: dw 150
+yc: dw 120
+xr: dw 180
+yr: dw 90
+xmouse: dw 0      
+ymouse: dw 0
+stat: db 0
+stat2: db 0
+color: db 0
+
 WriteMouseWait:
 check1:  
 in         al, 0x64
@@ -124,16 +375,10 @@ out 0x60, al
 in al,0x60
 ret
 
-xmouse: dw 0      
-ymouse: dw 0
-stat: db 0
-color: db 0
 
-done:
-
-
-times (510 - ($ - $$)) db 0
-db 0x55, 0xAA
+;;;;;;
+ScanCodeTable: db "//1234567890-=//QWERTYUIOP[]//ASDFGHJKL;//'/ZXCVBNM,.//// /"
+rii:
 times (0x400000 - 512) db 0
 
 db 	0x63, 0x6F, 0x6E, 0x65, 0x63, 0x74, 0x69, 0x78, 0x00, 0x00, 0x00, 0x02
