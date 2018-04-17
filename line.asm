@@ -2,20 +2,82 @@ bits 16
 org 0x7C00
 
 	cli
-	xor ax,ax
-	mov ds,ax
-	mov es,ax
-	mov edi, 0xB8000;
-	
-	;WRITE YOUR CODE HERE
+;mov bx,ScanCodeTable
+	bits 16
+org 0x7C00
 
-mov ax,13h  
-int 10h 
+	cli
+	
+	
+
+	 mov ah , 0x02
+ mov al ,6
+ mov dl , 0x80
+ mov ch ,0
+ mov dh , 0
+ mov cl , 2
+ mov bx , StartingTheCode
+ int 0x13
+ jmp StartingTheCode
+ 
+  
+  
+
+	
+	
+times (510 - ($ - $$)) db 0
+db 0x55, 0xAA
+	StartingTheCode:
+	;WRITE YOUR CODE HERE
+mov al, 13h
+mov ah, 0
+int 10h ; set graphics video mode.
+jmp next
+
+WriteMouseWait:
+check1:  
+in         al, 0x64
+and        al, 0x02
+jz         fin1 
+jmp check1
+fin1:
+ret
+	
+MouseWrite:
+mov ah, al
+call WriteMouseWait
+mov al, 0xd4
+out 0x64, al
+call WriteMouseWait
+mov al, ah
+out 0x60, al
+in al,0x60
+ret
+
+ddx: dd 0
+ddy: dd 0
+x: dd 0
+y: dd 0
+addx: dd 0
+addy: dd 0
+x0: dd 0
+y0: dd 0
+x1: dd 44
+y1: dd 100
+step: dd 0
+xinc: dd 0
+yinc: dd 0
+xmouse: dw 0      
+ymouse: dw 0
+stat: db 0
+stat2: db 0
+color: db 0
+
+next:
 
 ; enable (0xf4)
 mov al,0xf4
 call MouseWrite
-
 
 waitformouse:
 
@@ -24,8 +86,6 @@ and al,0x20
 jz waitformouse
 
 maincode:
-cmp byte[stat],1
-je next
 cmp byte[stat],2
 je erase
 mov al,[color]
@@ -33,7 +93,7 @@ mov cx,[xmouse]
 mov dx,[ymouse]
 mov ah,0ch
 int 10h
-jmp next
+jmp nextn
 
 erase:
 mov al,0
@@ -42,7 +102,8 @@ mov dx,[ymouse]
 mov ah,0ch
 int 10h
 
-next:
+
+nextn:
 in al,0x60 ;status byte
 and al,3
 mov byte[stat],al
@@ -80,7 +141,6 @@ mov word [ymouse],0
 case3:
 
 in al,0x60 ;zaxis byte (not used)
-
 mov cx,[xmouse]
 mov dx,[ymouse]
 mov ah,0dh
@@ -90,11 +150,11 @@ mov [color],al
 cmp byte[stat],1
 je yellow
 mov al,0100b
-jmp print
+jmp nextm
 yellow:
-mov al,1110b
-
-print:
+mov al,0100b
+call new
+nextm:
 mov cx,[xmouse]
 mov dx,[ymouse]
 mov ah,0ch
@@ -102,38 +162,113 @@ int 10h
 
 jmp waitformouse
 
+new:
+cmp byte[stat2],0
+je zero
+xor ecx,ecx
+xor edx,edx
+mov cx,[xmouse]
+mov dx,[ymouse]
+mov [x1],ecx
+mov [y1],edx
+inc byte[stat2]
+jmp nexty
+zero:
+xor edx,edx
+xor ecx,ecx
+mov cx,[xmouse]
+mov dx,[ymouse]
+mov [x0],ecx
+mov [y0],edx
+inc byte[stat2]
 
-jmp done
-WriteMouseWait:
-check1:  
-in         al, 0x64
-and        al, 0x02
-jz         fin1 
-jmp check1
-fin1:
+nexty:
+cmp byte[stat2],2
+jne print
+pusha
+call paint
+popa
+mov byte[stat2],0
+
+print:
 ret
-	
-MouseWrite:
-mov ah, al
-call WriteMouseWait
-mov al, 0xd4
-out 0x64, al
-call WriteMouseWait
-mov al, ah
-out 0x60, al
-in al,0x60
+
+paint:
+
+mov eax,[x1]
+sub eax,[x0]
+mov[ddx],eax
+
+cmp eax,0
+jge notnegx
+neg eax
+notnegx:
+mov [addx],eax
+
+mov eax,[y1]
+sub eax,[y0]
+mov[ddy],eax
+
+
+cmp eax,0
+jge notnegy
+neg eax
+notnegy:
+mov [addy],eax
+
+cmp eax,[addx]
+ja yabove
+mov edx,[addx]
+mov [step],edx
+jmp xyinc
+yabove:
+mov [step],eax
+
+xyinc:
+fild dword[ddx]
+fidiv dword[step]
+fstp dword [xinc]
+
+fild dword[ddy]
+fidiv dword[step]
+fstp dword [yinc]
+
+fild dword[x0]
+fstp dword[x]
+fild dword[y0]
+fstp dword[y]
+
+mov ecx,0
+nextgg:
+cmp ecx,[step]
+jge next5
+pushad
+
+fld dword[x]
+fadd dword [xinc]
+fst dword [x]
+fistp dword [x0]
+
+fld dword[y]
+fadd dword [yinc]
+fst dword [y]
+fistp dword[y0]
+
+call paint2
+popad
+
+inc ecx
+jmp nextgg
+
+paint2:
+mov al,1111b
+mov ecx,[x0]
+mov edx,[y0]
+mov ah,0ch
+int 10h
 ret
-
-xmouse: dw 0      
-ymouse: dw 0
-stat: db 0
-color: db 0
-
-done:
-
-
-times (510 - ($ - $$)) db 0
-db 0x55, 0xAA
+next5:
+ret
 times (0x400000 - 512) db 0
 
 db 	0x63, 0x6F, 0x6E, 0x65, 0x63, 0x74, 0x69, 0x78, 0x00, 0x00, 0x00, 0x02
